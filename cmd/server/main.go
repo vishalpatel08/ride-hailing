@@ -52,7 +52,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              ":8080",
-		Handler:           handler.New(rideService, coupons).Routes(),
+		Handler:           serverHandler(handler.New(rideService, coupons).Routes()),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -82,4 +82,11 @@ func run() error {
 		return nil
 	}
 	return err
+}
+
+func serverHandler(api http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/", api)
+	mux.Handle("GET /{$}", http.FileServer(http.Dir("web")))
+	return mux
 }

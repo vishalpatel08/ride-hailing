@@ -10,6 +10,8 @@ go run ./cmd/server
 
 The server listens on `:8080`. Matching defaults to nearest-first; set `DRIVER_MATCHING_STRATEGY=rating` to use highest-rated-first (`nearest` is also accepted). The in-memory data is reset when the process stops.
 
+Open [http://localhost:8080/](http://localhost:8080/) for the built-in single-page console, or use the Postman flow below. On wider screens, forms sit beside a sticky response panel capped below half the viewport height; on narrow screens, the panel moves above the forms and stays compact. Ride history also gets a small table preview while the complete JSON remains visible in the panel.
+
 Validate the project with:
 
 ```sh

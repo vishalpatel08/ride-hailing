@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ride Hailing · Console</title>
+  <style>
+    :root { color-scheme: light; font: 15px/1.45 system-ui, sans-serif; color: #17212b; background: #f4f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0 auto; padding: 28px 18px 48px; max-width: 1100px; }
+    h1 { margin: 0 0 5px; font-size: 1.7rem; }
+    h2 { margin: 0 0 14px; font-size: 1.08rem; }
+    p { margin: 0 0 22px; color: #5b6875; }
+    main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .85fr); align-items: start; gap: 16px; }
+    .forms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
+    section, .output { background: white; border: 1px solid #dce2e7; border-radius: 10px; padding: 17px; }
+    form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: grid; gap: 4px; font-size: .86rem; color: #465462; }
+    input, select { min-width: 0; width: 100%; border: 1px solid #cbd3da; border-radius: 6px; padding: 8px; font: inherit; color: #17212b; background: white; }
+    button { grid-column: 1 / -1; border: 0; border-radius: 6px; padding: 9px 12px; background: #176b58; color: white; font: inherit; font-weight: 600; cursor: pointer; }
+    button:hover { background: #105643; }
+    .wide { grid-column: 1 / -1; }
+    #output-panel { position: sticky; top: 16px; display: flex; flex-direction: column; max-height: 45vh; margin: 0; overflow: hidden; }
+    .output h2 { margin-bottom: 8px; }
+    pre { flex: 1; min-height: 4rem; max-height: 25vh; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: #263746; }
+    #history-table-wrap { display: none; max-height: 16vh; margin-top: 10px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th, td { padding: 6px; border-bottom: 1px solid #e3e8ec; text-align: left; white-space: nowrap; }
+    th { position: sticky; top: 0; background: #f5f7f8; }
+    @media (max-width: 760px) {
+      main { grid-template-columns: 1fr; }
+      #output-panel { position: sticky; top: 8px; order: -1; max-height: 34vh; z-index: 1; }
+    }
+    @media (max-width: 520px) { .forms { grid-template-columns: 1fr; } form { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 380px) { form { grid-template-columns: 1fr; } label, button, .wide { grid-column: 1; } }
+  </style>
+</head>
+<body>
+  <h1>Ride Hailing Console</h1>
+  <p>Use the forms to call the local API. Results stay visible in the response panel as you work.</p>
+  <main>
+    <div class="forms">
+    <section>
+      <h2>Register user</h2>
+      <form id="user-form">
+        <label>Name<input name="name" required></label>
+        <label>Phone<input name="phone" required></label>
+        <button>Register user</button>
+      </form>
+    </section>
+    <section>
+      <h2>Register driver</h2>
+      <form id="driver-form">
+        <label>Name<input name="name" required></label>
+        <label>Phone<input name="phone" required></label>
+        <label>Cab type<select name="cabType"><option>HATCHBACK</option><option>SEDAN</option></select></label>
+        <label>Latitude<input name="lat" type="number" step="any" required></label>
+        <label>Longitude<input name="lng" type="number" step="any" required></label>
+        <button>Register driver</button>
+      </form>
+    </section>
+    <section>
+      <h2>Update driver location</h2>
+      <form id="location-form">
+        <label class="wide">Driver ID<input name="driverId" required></label>
+        <label>Latitude<input name="lat" type="number" step="any" required></label>
+        <label>Longitude<input name="lng" type="number" step="any" required></label>
+        <button>Update location</button>
+      </form>
+    </section>
+    <section>
+      <h2>Book ride</h2>
+      <form id="book-form">
+        <label class="wide">User ID<input name="userId" required></label>
+        <label>Pickup latitude<input name="pickupLat" type="number" step="any" required></label>
+        <label>Pickup longitude<input name="pickupLng" type="number" step="any" required></label>
+        <label>Drop latitude<input name="dropLat" type="number" step="any" required></label>
+        <label>Drop longitude<input name="dropLng" type="number" step="any" required></label>
+        <label>Cab type<select name="cabType"><option>HATCHBACK</option><option>SEDAN</option></select></label>
+        <label>Coupon (optional)<input name="couponCode"></label>
+        <button>Book ride</button>
+      </form>
+    </section>
+    <section>
+      <h2>End ride</h2>
+      <form id="end-form">
+        <label class="wide">Ride ID<input name="rideId" required></label>
+        <label>Actual drop latitude<input name="lat" type="number" step="any" required></label>
+        <label>Actual drop longitude<input name="lng" type="number" step="any" required></label>
+        <button>End ride</button>
+      </form>
+    </section>
+    <section>
+      <h2>Ride history</h2>
+      <form id="history-form">
+        <label>Owner type<select name="owner"><option value="users">User</option><option value="drivers">Driver</option></select></label>
+        <label>Owner ID<input name="ownerId" required></label>
+        <label class="wide">Status (optional)<select name="status"><option value="">Any status</option><option>ONGOING</option><option>COMPLETED</option><option>CANCELLED</option></select></label>
+        <button>Load history</button>
+      </form>
+    </section>
+    <section>
+      <h2>Add coupon</h2>
+      <form id="coupon-form">
+        <label>Code<input name="code" required></label>
+        <label>Type<select name="type"><option>FLAT</option><option>PERCENT</option></select></label>
+        <label>Value<input name="value" type="number" min="1" required></label>
+        <label>Max discount (paise)<input name="maxDiscount" type="number" min="0" value="0"></label>
+        <button>Add coupon</button>
+      </form>
+    </section>
+    <section>
+      <h2>Delete coupon</h2>
+      <form id="delete-coupon-form">
+        <label class="wide">Coupon code<input name="code" required></label>
+        <button>Delete coupon</button>
+      </form>
+    </section>
+    </div>
+    <section class="output" id="output-panel" aria-live="polite">
+      <h2>API response</h2>
+      <pre id="output">Responses and errors will appear here.</pre>
+      <div id="history-table-wrap"></div>
+    </section>
+  </main>
+  <script>
+    const output = document.querySelector('#output');
+    const historyTable = document.querySelector('#history-table-wrap');
+    const json = value => JSON.stringify(value);
+    const makeLocation = (lat, lng) => ({ lat: Number(lat), lng: Number(lng) });
+
+    async function request(method, path, body) {
+      output.textContent = 'Loading…';
+      try {
+        const response = await fetch(path, {
+          method,
+          headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+          body: body === undefined ? undefined : json(body)
+        });
+        const text = await response.text();
+        let result;
+        try { result = JSON.parse(text); } catch { result = text; }
+        output.textContent = JSON.stringify({ status: response.status, response: result }, null, 2);
+        historyTable.replaceChildren();
+        historyTable.style.display = method === 'GET' && path.includes('/rides') && Array.isArray(result) ? 'block' : 'none';
+        if (historyTable.style.display === 'block') renderHistory(result);
+      } catch (error) {
+        output.textContent = JSON.stringify({ error: error.message }, null, 2);
+        historyTable.style.display = 'none';
+      }
+    }
+
+    function renderHistory(rides) {
+      const table = document.createElement('table');
+      table.innerHTML = '<thead><tr><th>Ride</th><th>Status</th><th>Driver</th><th>Final fare</th></tr></thead>';
+      const body = document.createElement('tbody');
+      rides.forEach(ride => {
+        const row = document.createElement('tr');
+        [ride.id, ride.status, ride.driverId, ride.finalFareRupees].forEach(value => {
+          const cell = document.createElement('td');
+          cell.textContent = value ?? '';
+          row.append(cell);
+        });
+        body.append(row);
+      });
+      table.append(body);
+      historyTable.append(table);
+    }
+
+    document.querySelectorAll('form').forEach(form => form.addEventListener('submit', event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      switch (form.id) {
+        case 'user-form': return request('POST', '/users', { name: data.name, phone: data.phone });
+        case 'driver-form': return request('POST', '/drivers', {
+          name: data.name, phone: data.phone, cabType: data.cabType, location: makeLocation(data.lat, data.lng)
+        });
+        case 'location-form': return request('PUT', `/drivers/${encodeURIComponent(data.driverId)}/location`, makeLocation(data.lat, data.lng));
+        case 'book-form': return request('POST', '/rides', {
+          userId: data.userId, pickup: makeLocation(data.pickupLat, data.pickupLng), drop: makeLocation(data.dropLat, data.dropLng),
+          cabType: data.cabType, couponCode: data.couponCode
+        });
+        case 'end-form': return request('POST', `/rides/${encodeURIComponent(data.rideId)}/end`, { drop: makeLocation(data.lat, data.lng) });
+        case 'history-form': {
+          const query = data.status ? `?status=${encodeURIComponent(data.status)}` : '';
+          return request('GET', `/${data.owner}/${encodeURIComponent(data.ownerId)}/rides${query}`);
+        }
+        case 'coupon-form': return request('POST', '/coupons', {
+          code: data.code, type: data.type, value: Number(data.value), maxDiscount: Number(data.maxDiscount)
+        });
+        case 'delete-coupon-form': return request('DELETE', `/coupons/${encodeURIComponent(data.code)}`);
+      }
+    }));
+  </script>
+</body>
+</html>
