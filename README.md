@@ -18,55 +18,106 @@ gofmt -l $(rg --files -g '*.go')
 go test -race ./...
 ```
 
-## API flow
+## Postman API flow
 
-Create a user and driver:
+Create a Postman environment or collection with `baseUrl` set to `http://localhost:8080`. Set `userId`, `driverId`, and `rideId` from the `id` values returned by the corresponding create/book requests. For JSON requests, select **Body → raw → JSON** (or add `Content-Type: application/json`).
 
-```sh
-curl -sS -X POST localhost:8080/users \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Asha","phone":"9000000001"}'
+### 1. Create a user
 
-curl -sS -X POST localhost:8080/drivers \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Dev","phone":"9000000002","cabType":"HATCHBACK","location":{"lat":19.076,"lng":72.8777}}'
+- Method: `POST`
+- URL: `{{baseUrl}}/users`
+- Body:
+
+```json
+{
+  "name": "Asha",
+  "phone": "9000000001"
+}
 ```
 
-Copy the returned user `id` into `USER_ID`. Book a ride and copy its returned ride `id` into `RIDE_ID`:
+Save the returned `id` as `userId`.
 
-```sh
-curl -sS -X POST localhost:8080/rides \
-  -H 'Content-Type: application/json' \
-  -d '{"userId":"USER_ID","pickup":{"lat":19.076,"lng":72.8777},"drop":{"lat":19.1,"lng":72.9},"cabType":"HATCHBACK"}'
+### 2. Create a driver
+
+- Method: `POST`
+- URL: `{{baseUrl}}/drivers`
+- Body:
+
+```json
+{
+  "name": "Dev",
+  "phone": "9000000002",
+  "cabType": "HATCHBACK",
+  "location": { "lat": 19.076, "lng": 72.8777 }
+}
 ```
 
-End the ride at its actual destination; the response contains distance and the paise/rupee fare breakdown:
+Save the returned `id` as `driverId`.
 
-```sh
-curl -sS -X POST localhost:8080/rides/RIDE_ID/end \
-  -H 'Content-Type: application/json' \
-  -d '{"drop":{"lat":19.1,"lng":72.9}}'
+### 3. (Optional) Create a coupon
+
+Create coupons before booking if you want to apply one. `maxDiscount` is in integer paise.
+
+- Method: `POST`
+- URL: `{{baseUrl}}/coupons`
+- Body:
+
+```json
+{
+  "code": "WELCOME",
+  "type": "PERCENT",
+  "value": 10,
+  "maxDiscount": 5000
+}
 ```
 
-Read completed ride history:
+### 4. Book a ride
 
-```sh
-curl -sS 'localhost:8080/users/USER_ID/rides?status=COMPLETED'
+Omit `couponCode` when not using a coupon. Save the returned `id` as `rideId`.
+
+- Method: `POST`
+- URL: `{{baseUrl}}/rides`
+- Body:
+
+```json
+{
+  "userId": "{{userId}}",
+  "pickup": { "lat": 19.076, "lng": 72.8777 },
+  "drop": { "lat": 19.1, "lng": 72.9 },
+  "cabType": "HATCHBACK",
+  "couponCode": "WELCOME"
+}
 ```
 
-Coupons are optional. `maxDiscount` and all returned monetary `*Paise` values are integer paise:
+### 5. End the ride
 
-```sh
-curl -sS -X POST localhost:8080/coupons \
-  -H 'Content-Type: application/json' \
-  -d '{"code":"WELCOME","type":"PERCENT","value":10,"maxDiscount":5000}'
+The response includes distance and base, discount, and final fares in paise and formatted rupees.
 
-curl -sS -X POST localhost:8080/rides \
-  -H 'Content-Type: application/json' \
-  -d '{"userId":"USER_ID","pickup":{"lat":19.076,"lng":72.8777},"drop":{"lat":19.1,"lng":72.9},"cabType":"HATCHBACK","couponCode":"WELCOME"}'
+- Method: `POST`
+- URL: `{{baseUrl}}/rides/{{rideId}}/end`
+- Body:
+
+```json
+{
+  "drop": { "lat": 19.1, "lng": 72.9 }
+}
 ```
 
-Cancellation is available through `POST /rides/RIDE_ID/cancel`. Driver location updates use `PUT /drivers/DRIVER_ID/location` with `{"lat":19.1,"lng":72.9}`. Both user and driver history routes accept an optional `status` query parameter.
+### 6. Read completed ride history
+
+- Method: `GET`
+- URL: `{{baseUrl}}/users/{{userId}}/rides`
+- Params: `status` = `COMPLETED`
+
+Driver history is `GET {{baseUrl}}/drivers/{{driverId}}/rides` with the same optional `status` parameter.
+
+### Optional requests
+
+- Cancel an ongoing ride: `POST {{baseUrl}}/rides/{{rideId}}/cancel` (no body).
+- Update a driver's location: `PUT {{baseUrl}}/drivers/{{driverId}}/location`, body `{"lat":19.1,"lng":72.9}`.
+- Delete a coupon: `DELETE {{baseUrl}}/coupons/WELCOME`.
+
+All monetary response fields ending in `Paise`, plus coupon `maxDiscount`, use integer paise.
 
 ## Architecture
 
